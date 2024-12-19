@@ -94,9 +94,11 @@ sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 # Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
 
-# Wait for user input (only process when the user presses Enter)
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
-if user_input:
+# Wait for user input (only process when the user clicks the "Submit" button)
+user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here")
+submit_button = st.button("Submit", key="submit_button")
+
+if submit_button and user_input:
     # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
