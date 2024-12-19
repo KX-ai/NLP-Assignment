@@ -121,7 +121,8 @@ if submit_button and user_input:
     # Estimate token count and truncate if necessary
     total_tokens = estimate_token_count(st.session_state.current_chat)
     if total_tokens > context_length:
-        st.session_state.current_chat = st.session_state.current_chat[:1] + st.session_state.current_chat[-10:]  # Keep the last 10 messages
+        # Trim the chat history to fit within the token limit, keeping only the last 5 messages
+        st.session_state.current_chat = st.session_state.current_chat[-5:]
 
     remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
     max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
@@ -142,13 +143,12 @@ if submit_button and user_input:
             answer = response['choices'][0]['message']['content'].strip()
             # Append the model's response to the conversation history
             st.session_state.current_chat.append({"role": "assistant", "content": answer})
+            # Save chat history
+            save_chat_history(st.session_state.chat_history)
         else:
             st.error("Error: Empty response from the model.")
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
-
-# Save chat history (excluding the document content from the history)
-save_chat_history(st.session_state.chat_history)
 
 # Display chat history with deletion option
 with st.expander("Chat History"):
