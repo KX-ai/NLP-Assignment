@@ -59,6 +59,41 @@ def estimate_token_count(messages):
             token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
     return token_count
 
+# Function to chunk text into manageable parts
+def chunk_text(text, max_tokens=2048):
+    words = text.split()
+    avg_tokens_per_word = 4  # Estimate for token calculation
+    chunk_size = max_tokens // avg_tokens_per_word
+    chunks = [
+        " ".join(words[i:i + chunk_size])
+        for i in range(0, len(words), chunk_size)
+    ]
+    return chunks
+
+# Function to summarize a chunk of text
+def summarize_chunk(chunk, model, client, temperature=0.5, max_tokens=256):
+    summary_prompt = f"Summarize the following text:\n\n{chunk}\n\nSummary:"
+    messages = [{"role": "system", "content": summary_prompt}]
+    response = client.chat(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    if 'choices' in response and response['choices']:
+        return response['choices'][0]['message']['content'].strip()
+    return "No summary available."
+
+# Function to process the entire document
+def process_document(text, model, client, max_chunk_tokens=2048):
+    chunks = chunk_text(text, max_tokens=max_chunk_tokens)
+    summaries = []
+    for i, chunk in enumerate(chunks):
+        st.info(f"Processing chunk {i + 1}/{len(chunks)}...")
+        summary = summarize_chunk(chunk, model, client)
+        summaries.append(summary)
+    return summaries
+
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Botify")
@@ -103,7 +138,20 @@ if submit_button and user_input:
 
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
-        prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
+
+        # Choose chunk size based on model
+        max_chunk_tokens = 2048 if model_choice == "Meta-Llama-3.2-1B-Instruct" else 1024
+
+        # Process the document and get summaries
+        summaries = process_document(text_content, model_choice, SambanovaClient(
+            api_key=sambanova_api_key,
+            base_url="https://api.sambanova.ai/v1"
+        ), max_chunk_tokens=max_chunk_tokens)
+
+        # Combine summaries into a single text
+        summarized_text = "\n\n".join(summaries)
+
+        prompt_text = f"Document content (summarized):\n{summarized_text}\n\nUser question: {user_input}\nAnswer:"
     else:
         prompt_text = f"User question: {user_input}\nAnswer:"
 
