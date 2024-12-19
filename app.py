@@ -70,12 +70,22 @@ pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
+    st.session_state.selected_model = "Qwen2.5-72B-Instruct"
 
 # Button to start a new chat
 if st.button("Start New Chat"):
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
     st.session_state.chat_history.append(st.session_state.current_chat)
     st.success("New chat started!")
+
+# Model selection
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
+
+# Change model logic
+if model_choice != st.session_state.selected_model:
+    st.session_state.selected_model = model_choice
+    st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
+    st.session_state.chat_history.append(st.session_state.current_chat)
 
 # Display chat dynamically
 st.write("### Chat Conversation")
@@ -90,9 +100,6 @@ for msg in st.session_state.current_chat:
 
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-
-# Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
 
 # Wait for user input (only process when the user clicks the "Submit" button)
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here")
@@ -115,7 +122,7 @@ if submit_button and user_input:
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
     # Adjust the context length for each model
-    model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
+    model = "Qwen2.5-72B-Instruct" if st.session_state.selected_model == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
     # Estimate token count and truncate if necessary
