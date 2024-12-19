@@ -105,13 +105,18 @@ if submit_button and user_input:
     model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
-    # If the total token count exceeds the context length, truncate the messages
+    # Calculate total tokens
     total_tokens = sum(len(msg["content"]) for msg in st.session_state.current_chat)  # Simplified token count
 
+    # If the total token count exceeds the context length, truncate the messages
     if total_tokens > context_length:
         # Truncate chat history to fit the context length
         st.session_state.current_chat = st.session_state.current_chat[:1]  # Keep only the initial prompt
         st.warning(f"Message size too large! Only the initial prompt is used. Current tokens: {total_tokens}")
+
+    # Ensure max_tokens is at least 1
+    remaining_tokens = context_length - total_tokens
+    max_tokens = max(remaining_tokens, 1)
 
     try:
         response = SambanovaClient(
@@ -122,7 +127,7 @@ if submit_button and user_input:
             messages=st.session_state.current_chat,
             temperature=0.1,
             top_p=0.1,
-            max_tokens=context_length - total_tokens  # Adjust based on available context
+            max_tokens=max_tokens  # Adjust based on available context
         )
         answer = response['choices'][0]['message']['content'].strip()
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
