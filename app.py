@@ -33,7 +33,7 @@ class SambanovaClient:
 class TogetherClient:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = "https://api.together.xyz/inference"
+        self.url = "https://api.together.xyz/v1/chat/completions"
 
     def chat(self, model, messages):
         payload = {
