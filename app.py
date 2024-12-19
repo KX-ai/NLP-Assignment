@@ -49,8 +49,9 @@ class TogetherClient:
         }
         try:
             response = requests.post(self.url, json=payload, headers=headers)
+            response.raise_for_status()  # Check for HTTP errors
             return response.json()
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             raise Exception(f"Error while calling Together API: {str(e)}")
 
 # Function to extract text from PDF using PyPDF2
@@ -140,11 +141,14 @@ if submit_button and user_input:
             )
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Together (Dolphin 2.5 Mixtral 8x7b)":
+            # Send request to Together API
             response = TogetherClient(api_key=together_api_key).chat(
                 model="cognitivecomputations/dolphin-2.5-mixtral-8x7b",
                 messages=st.session_state.current_chat
             )
+            # Extract the content from the response
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
+        
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
