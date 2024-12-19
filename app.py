@@ -77,35 +77,16 @@ if st.button("Start New Chat"):
     st.session_state.chat_history.append(st.session_state.current_chat)
     st.success("New chat started!")
 
-# Display chat dynamically
-st.write("### Chat Conversation")
-for msg in st.session_state.current_chat:
-    if isinstance(msg, dict) and "role" in msg and "content" in msg:
-        if msg["role"] == "user":
-            st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
-        elif msg["role"] == "assistant":
-            st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
-    else:
-        st.error("Error: A message is missing or malformed in the chat history.")
-
-# API keys
-sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
-
-# Model selection
+# Model selection (prompt user for input before generating response)
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
 
-# Wait for user input
+# Wait for user input (only process when the user presses Enter)
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
-submit_button = st.button("Submit")
-
-if submit_button and user_input:
+if user_input:
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
-    if pdf_file:
-        text_content = extract_text_from_pdf(pdf_file)
-        prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
-    else:
-        prompt_text = f"User question: {user_input}\nAnswer:"
+    # Do not save document content in chat history
+    prompt_text = f"User question: {user_input}\nAnswer:"
 
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
@@ -123,7 +104,7 @@ if submit_button and user_input:
 
     try:
         response = SambanovaClient(
-            api_key=sambanova_api_key,
+            api_key=st.secrets["general"]["SAMBANOVA_API_KEY"],
             base_url="https://api.sambanova.ai/v1"
         ).chat(
             model=model,
