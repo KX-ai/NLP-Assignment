@@ -97,11 +97,19 @@ model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-I
 # Wait for user input (only process when the user presses Enter)
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 if user_input:
+    # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
-    # Do not save document content in chat history
-    prompt_text = f"User question: {user_input}\nAnswer:"
+    # If a PDF is uploaded, extract its content
+    if pdf_file:
+        text_content = extract_text_from_pdf(pdf_file)
+        # Use the extracted PDF content as part of the prompt
+        prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
+    else:
+        # Only use user input for the prompt if no PDF is uploaded
+        prompt_text = f"User question: {user_input}\nAnswer:"
 
+    # Add system message with the prompt (for LLM)
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
     # Adjust the context length for each model
@@ -117,6 +125,7 @@ if user_input:
     max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
 
     try:
+        # Call the API to get a response from the selected model
         response = SambanovaClient(
             api_key=sambanova_api_key,
             base_url="https://api.sambanova.ai/v1"
@@ -129,13 +138,14 @@ if user_input:
         )
         if 'choices' in response and response['choices']:
             answer = response['choices'][0]['message']['content'].strip()
+            # Append the model's response to the conversation history
             st.session_state.current_chat.append({"role": "assistant", "content": answer})
         else:
             st.error("Error: Empty response from the model.")
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
-# Save chat history
+# Save chat history (excluding the document content from the history)
 save_chat_history(st.session_state.chat_history)
 
 # Display chat history with deletion option
