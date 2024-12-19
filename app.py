@@ -105,6 +105,7 @@ sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here")
 submit_button = st.button("Submit", key="submit_button")
 
+# Ensure the submit button is handled properly and the conversation updates when clicked
 if submit_button and user_input:
     # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
@@ -125,11 +126,11 @@ if submit_button and user_input:
     model = "Qwen2.5-72B-Instruct" if st.session_state.selected_model == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
-    # Estimate token count and truncate if necessary
+    # Estimate token count and trim history to stay within the token limit
     total_tokens = estimate_token_count(st.session_state.current_chat)
     if total_tokens > context_length:
-        # Trim the chat history to fit within the token limit, keeping only the last 5 messages
-        st.session_state.current_chat = st.session_state.current_chat[-5:]
+        # Trim the chat history to fit within the token limit, keeping only the last 3 messages
+        st.session_state.current_chat = st.session_state.current_chat[-3:]
 
     remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
     max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
