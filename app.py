@@ -4,6 +4,7 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
+import tiktoken
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -51,23 +52,19 @@ def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
-# Estimate token count for messages
-def estimate_token_count(messages):
+# Estimate token count using tiktoken
+def estimate_token_count(messages, model="gpt-3.5-turbo"):
+    encoding = tiktoken.get_encoding("cl100k_base" if "gpt-3" in model else "p50k_base")
     token_count = 0
     for msg in messages:
-        if "content" in msg:
-            token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
+        token_count += len(encoding.encode(msg["content"]))
     return token_count
 
-# Function to chunk text into manageable parts
-def chunk_text(text, max_tokens=2048):
-    words = text.split()
-    avg_tokens_per_word = 4  # Estimate for token calculation
-    chunk_size = max_tokens // avg_tokens_per_word
-    chunks = [
-        " ".join(words[i:i + chunk_size])
-        for i in range(0, len(words), chunk_size)
-    ]
+# Function to chunk text into manageable parts based on token limits
+def chunk_text(text, max_tokens=2048, model="gpt-3.5-turbo"):
+    encoding = tiktoken.get_encoding("cl100k_base" if "gpt-3" in model else "p50k_base")
+    tokens = encoding.encode(text)
+    chunks = [encoding.decode(tokens[i:i + max_tokens]) for i in range(0, len(tokens), max_tokens)]
     return chunks
 
 # Function to summarize a chunk of text
@@ -86,7 +83,7 @@ def summarize_chunk(chunk, model, client, temperature=0.5, max_tokens=256):
 
 # Function to process the entire document
 def process_document(text, model, client, max_chunk_tokens=2048):
-    chunks = chunk_text(text, max_tokens=max_chunk_tokens)
+    chunks = chunk_text(text, max_tokens=max_chunk_tokens, model=model)
     summaries = []
     for i, chunk in enumerate(chunks):
         st.info(f"Processing chunk {i + 1}/{len(chunks)}...")
@@ -162,11 +159,15 @@ if submit_button and user_input:
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
     # Estimate token count and truncate if necessary
-    total_tokens = estimate_token_count(st.session_state.current_chat)
+    total_tokens = estimate_token_count(st.session_state.current_chat, model=model)
     if total_tokens > context_length:
-        st.session_state.current_chat = st.session_state.current_chat[:1] + st.session_state.current_chat[-10:]  # Keep the last 10 messages
+        # Remove older messages to stay within the context limit
+        while total_tokens > context_length and len(st.session_state.current_chat) > 1:
+            st.session_state.current_chat.pop(1)
+            total_tokens = estimate_token_count(st.session_state.current_chat, model=model)
+        st.info(f"Trimmed conversation to {len(st.session_state.current_chat)} messages to fit within the context length.")
 
-    remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
+    remaining_tokens = context_length - total_tokens
     max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
 
     try:
