@@ -51,6 +51,14 @@ def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, "w") as file:
         json.dump(history, file, indent=4)
 
+# Estimate token count for messages
+def estimate_token_count(messages):
+    token_count = 0
+    for msg in messages:
+        if "content" in msg:
+            token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
+    return token_count
+
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Botify")
@@ -105,15 +113,12 @@ if submit_button and user_input:
     model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
-    # Calculate total tokens
-    total_tokens = sum(len(msg["content"]) for msg in st.session_state.current_chat)  # Simplified token count
-
-    # If the total token count exceeds the context length, truncate the messages
+    # Estimate token count and truncate if necessary
+    total_tokens = estimate_token_count(st.session_state.current_chat)
     if total_tokens > context_length:
         st.session_state.current_chat = st.session_state.current_chat[:1]  # Keep only the initial prompt
 
-    # Ensure max_tokens is at least 1
-    remaining_tokens = context_length - total_tokens
+    remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
     max_tokens = max(remaining_tokens, 1)
 
     try:
@@ -125,10 +130,13 @@ if submit_button and user_input:
             messages=st.session_state.current_chat,
             temperature=0.1,
             top_p=0.1,
-            max_tokens=max_tokens  # Adjust based on available context
+            max_tokens=max_tokens
         )
-        answer = response['choices'][0]['message']['content'].strip()
-        st.session_state.current_chat.append({"role": "assistant", "content": answer})
+        if 'choices' in response and response['choices']:
+            answer = response['choices'][0]['message']['content'].strip()
+            st.session_state.current_chat.append({"role": "assistant", "content": answer})
+        else:
+            st.error("Error: Empty response from the model.")
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
