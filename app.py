@@ -29,7 +29,7 @@ class SambanovaClient:
         except Exception as e:
             raise Exception(f"Error while calling Sambanova API: {str(e)}")
 
-# Use the Together API for Dolphin 2.5 Mixtral (8x7b)
+# Use the Together API for Deepseek LLM (67B-Chat)
 class TogetherClient:
     def __init__(self, api_key):
         self.api_key = api_key
@@ -107,7 +107,7 @@ sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 together_api_key = "db476cc81d29116da9b75433badfe89666552a25d2cd8efd6cb5a0c916eb8f50"
 
 # Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Dolphin 2.5 Mixtral 8x7b)"])
+model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Together (Deepseek 67B-Chat)"])
 
 # Wait for user input
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
@@ -137,9 +137,9 @@ if submit_button and user_input:
                 max_tokens=8192  # Updated context length for Qwen model
             )
             answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Together (Dolphin 2.5 Mixtral 8x7b)":
+        elif model_choice == "Together (Deepseek 67B-Chat)":
             response = TogetherClient(api_key=together_api_key).chat(
-                model="cognitivecomputations/dolphin-2.5-mixtral-8x7b",
+                model="deepseek-ai/deepseek-llm-67b-chat",
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
