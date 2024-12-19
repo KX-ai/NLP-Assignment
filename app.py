@@ -77,7 +77,21 @@ if st.button("Start New Chat"):
     st.session_state.chat_history.append(st.session_state.current_chat)
     st.success("New chat started!")
 
-# Model selection (prompt user for input before generating response)
+# Display chat dynamically
+st.write("### Chat Conversation")
+for msg in st.session_state.current_chat:
+    if isinstance(msg, dict) and "role" in msg and "content" in msg:
+        if msg["role"] == "user":
+            st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
+        elif msg["role"] == "assistant":
+            st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
+    else:
+        st.error("Error: A message is missing or malformed in the chat history.")
+
+# API keys
+sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
+
+# Model selection
 model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
 
 # Wait for user input (only process when the user presses Enter)
@@ -104,7 +118,7 @@ if user_input:
 
     try:
         response = SambanovaClient(
-            api_key=st.secrets["general"]["SAMBANOVA_API_KEY"],
+            api_key=sambanova_api_key,
             base_url="https://api.sambanova.ai/v1"
         ).chat(
             model=model,
