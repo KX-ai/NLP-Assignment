@@ -4,23 +4,9 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
-from tiktoken import encoding_for_model, get_encoding
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
-
-# Tokenizer setup to estimate token count
-def count_tokens(messages, model):
-    try:
-        encoding = encoding_for_model(model)  # Try to get encoding for the model
-    except KeyError:
-        # Fallback if model is not found
-        encoding = get_encoding("cl100k_base")  # Use a default encoding if not found
-    
-    total_tokens = 0
-    for message in messages:
-        total_tokens += len(encoding.encode(message["content"]))
-    return total_tokens
 
 # Use the Sambanova API for Qwen 2.5-72B-Instruct and Meta-Llama-3.2-1B-Instruct
 class SambanovaClient:
@@ -115,15 +101,17 @@ if submit_button and user_input:
 
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
-    # Adjust the token count for each model
+    # Adjust the context length for each model
     model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
-    current_tokens = count_tokens(st.session_state.current_chat, model)
 
     # If the total token count exceeds the context length, truncate the messages
-    if current_tokens > context_length:
+    total_tokens = sum(len(msg["content"]) for msg in st.session_state.current_chat)  # Simplified token count
+
+    if total_tokens > context_length:
+        # Truncate chat history to fit the context length
         st.session_state.current_chat = st.session_state.current_chat[:1]  # Keep only the initial prompt
-        st.warning(f"Message size too large! Only the initial prompt is used. Current tokens: {current_tokens}")
+        st.warning(f"Message size too large! Only the initial prompt is used. Current tokens: {total_tokens}")
 
     try:
         response = SambanovaClient(
@@ -134,7 +122,7 @@ if submit_button and user_input:
             messages=st.session_state.current_chat,
             temperature=0.1,
             top_p=0.1,
-            max_tokens=context_length - current_tokens  # Adjust based on available context
+            max_tokens=context_length - total_tokens  # Adjust based on available context
         )
         answer = response['choices'][0]['message']['content'].strip()
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
