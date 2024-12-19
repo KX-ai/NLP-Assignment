@@ -4,11 +4,20 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
+from tiktoken import encoding_for_model
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
-# Use the Sambanova API for Qwen 2.5-72B-Instruct
+# Tokenizer setup to estimate token count
+def count_tokens(messages, model):
+    encoding = encoding_for_model(model)
+    total_tokens = 0
+    for message in messages:
+        total_tokens += len(encoding.encode(message["content"]))
+    return total_tokens
+
+# Use the Sambanova API for Qwen 2.5-72B-Instruct and Meta-Llama-3.2-1B-Instruct
 class SambanovaClient:
     def __init__(self, api_key, base_url):
         self.api_key = api_key
@@ -101,31 +110,28 @@ if submit_button and user_input:
 
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
+    # Adjust the token count for each model
+    model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
+    context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
+    current_tokens = count_tokens(st.session_state.current_chat, model)
+
+    # If the total token count exceeds the context length, truncate the messages
+    if current_tokens > context_length:
+        st.session_state.current_chat = st.session_state.current_chat[:1]  # Keep only the initial prompt
+        st.warning(f"Message size too large! Only the initial prompt is used. Current tokens: {current_tokens}")
+
     try:
-        if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)":
-            response = SambanovaClient(
-                api_key=sambanova_api_key,
-                base_url="https://api.sambanova.ai/v1"
-            ).chat(
-                model="Qwen2.5-72B-Instruct",
-                messages=st.session_state.current_chat,
-                temperature=0.1,
-                top_p=0.1,
-                max_tokens=8192  # Adjust the context length for Qwen model (8192 tokens)
-            )
-            answer = response['choices'][0]['message']['content'].strip()
-        elif model_choice == "Sambanova (Meta-Llama-3.2-1B-Instruct)":
-            response = SambanovaClient(
-                api_key=sambanova_api_key,
-                base_url="https://api.sambanova.ai/v1"
-            ).chat(
-                model="Meta-Llama-3.2-1B-Instruct",
-                messages=st.session_state.current_chat,
-                temperature=0.1,
-                top_p=0.1,
-                max_tokens=16000  # Adjust the context length for Meta-Llama model (16k tokens)
-            )
-            answer = response['choices'][0]['message']['content'].strip()
+        response = SambanovaClient(
+            api_key=sambanova_api_key,
+            base_url="https://api.sambanova.ai/v1"
+        ).chat(
+            model=model,
+            messages=st.session_state.current_chat,
+            temperature=0.1,
+            top_p=0.1,
+            max_tokens=context_length - current_tokens  # Adjust based on available context
+        )
+        answer = response['choices'][0]['message']['content'].strip()
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
