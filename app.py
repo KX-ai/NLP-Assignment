@@ -38,16 +38,38 @@ class TogetherClient:
     def chat(self, model, messages):
         payload = {
             "model": model,
-            "messages": messages
+            "messages": messages,
+            "max_tokens": 300,  # Adjust this as needed
+            "temperature": 0.7,  # Adjust temperature for response creativity
+            "top_p": 1.0,  # Adjust top_p for response diversity
+            "top_k": 0,
+            "repetition_penalty": 1.0,
+            "stop": None,  # Specify stop tokens if needed
+            "stream": False,  # Set to True if you want streaming
+            "echo": True,
+            "logprobs": 0,
+            "n": 1,  # Number of responses to generate
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "logit_bias": {},
+            "response_format": {
+                "type": "json",
+                "schema": {"additionalProp": "string"}
+            },
+            "tools": [],  # Add any tools if necessary
+            "tool_choice": "",  # Specify tool if required
+            "safety_model": "safety_model_name"  # Optional, specify safety model if required
         }
+
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
             "authorization": f"Bearer {self.api_key}"
         }
+
         try:
             response = requests.post(self.url, json=payload, headers=headers)
-            return response.json()
+            return response.json()  # Parse JSON response
         except Exception as e:
             raise Exception(f"Error while calling Together API: {str(e)}")
 
@@ -139,7 +161,7 @@ if submit_button and user_input:
             answer = response['choices'][0]['message']['content'].strip()
         elif model_choice == "Together (Wizard LM-2 8x22b)":
             response = TogetherClient(api_key=together_api_key).chat(
-                model="wizardlm2-8x22b",
+                model="wizardlm2-8x22b",  # Make sure this is the correct model name
                 messages=st.session_state.current_chat
             )
             answer = response.get('choices', [{}])[0].get('message', {}).get('content', "No response received.")
