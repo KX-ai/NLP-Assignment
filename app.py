@@ -116,10 +116,10 @@ if submit_button and user_input:
     # Estimate token count and truncate if necessary
     total_tokens = estimate_token_count(st.session_state.current_chat)
     if total_tokens > context_length:
-        st.session_state.current_chat = st.session_state.current_chat[:1]  # Keep only the initial prompt
+        st.session_state.current_chat = st.session_state.current_chat[:1] + st.session_state.current_chat[-10:]  # Keep the last 10 messages
 
     remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
-    max_tokens = max(remaining_tokens, 1)
+    max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
 
     try:
         response = SambanovaClient(
