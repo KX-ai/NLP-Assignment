@@ -110,9 +110,7 @@ if submit_button and user_input:
 
     # If the total token count exceeds the context length, truncate the messages
     if total_tokens > context_length:
-        # Truncate chat history to fit the context length
         st.session_state.current_chat = st.session_state.current_chat[:1]  # Keep only the initial prompt
-        st.warning(f"Message size too large! Only the initial prompt is used. Current tokens: {total_tokens}")
 
     # Ensure max_tokens is at least 1
     remaining_tokens = context_length - total_tokens
