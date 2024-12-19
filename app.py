@@ -59,6 +59,20 @@ def estimate_token_count(messages):
             token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
     return token_count
 
+# Truncate messages to fit within the context limit
+def truncate_messages(messages, context_length, max_tokens):
+    truncated_messages = [{"role": "system", "content": messages[0]["content"]}]  # Keep the system prompt
+    token_count = estimate_token_count(truncated_messages)
+
+    for message in reversed(messages[1:]):  # Start from the latest messages
+        message_token_count = len(message["content"].split()) * 4
+        if token_count + message_token_count + max_tokens > context_length:
+            break
+        truncated_messages.insert(1, message)  # Insert messages in reverse order
+        token_count += message_token_count
+
+    return truncated_messages
+
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
 st.title("Botify")
@@ -114,12 +128,8 @@ if submit_button and user_input:
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
     # Estimate token count and truncate if necessary
-    total_tokens = estimate_token_count(st.session_state.current_chat)
-    if total_tokens > context_length:
-        st.session_state.current_chat = st.session_state.current_chat[:1] + st.session_state.current_chat[-10:]  # Keep the last 10 messages
-
-    remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
-    max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
+    max_completion_tokens = 1024
+    st.session_state.current_chat = truncate_messages(st.session_state.current_chat, context_length, max_completion_tokens)
 
     try:
         response = SambanovaClient(
@@ -130,7 +140,7 @@ if submit_button and user_input:
             messages=st.session_state.current_chat,
             temperature=0.1,
             top_p=0.1,
-            max_tokens=max_tokens
+            max_tokens=max_completion_tokens
         )
         if 'choices' in response and response['choices']:
             answer = response['choices'][0]['message']['content'].strip()
