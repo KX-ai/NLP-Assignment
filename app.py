@@ -4,14 +4,19 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
-from tiktoken import encoding_for_model
+from tiktoken import encoding_for_model, get_encoding
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
 
 # Tokenizer setup to estimate token count
 def count_tokens(messages, model):
-    encoding = encoding_for_model(model)
+    try:
+        encoding = encoding_for_model(model)  # Try to get encoding for the model
+    except KeyError:
+        # Fallback if model is not found
+        encoding = get_encoding("cl100k_base")  # Use a default encoding if not found
+    
     total_tokens = 0
     for message in messages:
         total_tokens += len(encoding.encode(message["content"]))
