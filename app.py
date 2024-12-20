@@ -101,12 +101,11 @@ for msg in st.session_state.current_chat:
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 
-# Wait for user input (only process when the user clicks the "Submit" button)
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here")
-submit_button = st.button("Submit", key="submit_button")
+# Wait for user input (process when the Enter key is pressed)
+user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
 
-# Ensure the submit button is handled properly and the conversation updates when clicked
-if submit_button and user_input:
+# Process the user's input when the Enter key is pressed
+if user_input:
     # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
@@ -157,6 +156,9 @@ if submit_button and user_input:
             st.error("Error: Empty response from the model.")
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
+
+    # Clear the input field after processing
+    st.session_state.user_input = ""
 
 # Display chat history with deletion option
 with st.expander("Chat History"):
