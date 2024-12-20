@@ -66,15 +66,15 @@ st.title("Botify")
 # Upload a PDF file
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
-# Initialize session state for chat
+# Initialize session state
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
+if "current_chat" not in st.session_state:
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
-    st.session_state.selected_model = "Qwen2.5-72B-Instruct"
-
-# Ensure 'user_input' is initialized
 if "user_input" not in st.session_state:
     st.session_state.user_input = ""
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "Qwen2.5-72B-Instruct"
 
 # Button to start a new chat
 if st.button("Start New Chat"):
@@ -105,8 +105,15 @@ for msg in st.session_state.current_chat:
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 
-# User input (press Enter to submit)
-user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
+# User input box with Enter key submission
+user_input = st.text_input(
+    "Your message:",
+    value=st.session_state.user_input,
+    placeholder="Type your message here and press Enter",
+    key="user_input",
+    on_change=lambda: None,  # Dummy function to trigger state update
+)
+
 if user_input:
     # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
