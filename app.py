@@ -186,11 +186,14 @@ if submit_button and user_input:
         prompt_text = f"User question: {user_input}\nAnswer:"
 
     # Process audio transcription if uploaded
+    transcription = None  # Initialize transcription to None by default
     if audio_file:
         try:
             transcription = transcribe_audio(audio_file)  # Use the Groq transcription function
             if transcription:
                 prompt_text += f"\n\nTranscribed audio content:\n{transcription}"
+            else:
+                st.warning("No transcription returned from the audio file.")
         except Exception as e:
             st.error(f"Error while transcribing audio: {e}")
 
@@ -224,9 +227,9 @@ if submit_button and user_input:
             else:
                 st.error("Error: Empty response from the model.")
         else:  # If Whisper model, return transcription text
-            st.session_state.current_chat.append({"role": "assistant", "content": transcription})
-            save_chat_history(st.session_state.chat_history)
+            if transcription:
+                st.session_state.current_chat.append({"role": "assistant", "content": transcription})
+                save_chat_history(st.session_state.chat_history)
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
-
