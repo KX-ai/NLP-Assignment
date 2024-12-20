@@ -7,6 +7,7 @@ import json
 from io import BytesIO
 from pydub import AudioSegment
 from pydub.utils import mediainfo
+from groq import Groq  # Groq library for audio transcription
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -64,16 +65,8 @@ def estimate_token_count(messages):
 
 # Updated function to transcribe audio using the Groq API
 def transcribe_audio(file):
-    whisper_api_key = st.secrets["whisper"]["WHISPER_API_KEY"]  # Access Whisper API key (Groq API key)
-    url = "https://api.groq.com/openai/v1/audio/transcriptions"  # Groq transcription endpoint
-
-    # Specify the transcription model (Groq's API model)
-    model = "whisper-large-v3-turbo"  # Use the correct model name
-
-    # Prepare the headers for the API request
-    headers = {
-        "Authorization": f"Bearer {whisper_api_key}",  # Authorization with your API key
-    }
+    groq_api_key = st.secrets["groq"]["GROQ_API_KEY"]  # Access Groq API key
+    client = Groq(api_key=groq_api_key)
 
     # Check if the file is in the correct format (MP3, WAV, etc.)
     if file.type not in ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/opus', 'audio/flac']:
@@ -99,35 +92,26 @@ def transcribe_audio(file):
         st.error(f"Audio file is too short. The minimum length is 10 seconds. Your file is {duration_seconds:.2f} seconds.")
         return None
 
-    # Prepare the data payload for the request
-    data = {
-        "model": model,  # Add the model field to the request
-        "language": "en",  # Specify the language
-    }
-
+    # Open the audio file and send it to the Groq API
     try:
-        # Open the audio file and send it as binary content
         with file:
-            audio_file = BytesIO(file.getvalue())  # Convert the file to a BytesIO object
-            files = {"file": audio_file}  # Prepare the file for sending as part of the request
-            response = requests.post(
-                url,
-                headers=headers,
-                files=files,
-                data=data  # Send additional data (model and language)
+            audio_file = file.getvalue()  # Get the binary content of the audio file
+
+            transcription = client.audio.transcriptions.create(
+                file=("audio_file", audio_file),  # Send audio file
+                model="whisper-large-v3-turbo",  # Use the Whisper model
+                language="en",  # Specify language as English
+                response_format="json",  # JSON response format
+                temperature=0.0  # Optional: Set temperature (for randomness)
             )
 
-        # Check if the request was successful
-        if response.status_code == 200:
-            transcription = response.json()  # Parse the response JSON
-            return transcription["text"]  # Return the transcribed text
-        else:
-            st.error(f"Error: {response.status_code} - {response.text}")
-            return None
-
-    except requests.exceptions.RequestException as e:
-        # Handle any errors during the API request
-        st.error(f"Error while transcribing audio: {str(e)}")
+            if transcription and 'text' in transcription:
+                return transcription['text']  # Return the transcribed text
+            else:
+                st.error("Error: No transcription text returned.")
+                return None
+    except Exception as e:
+        st.error(f"Error while transcribing audio with Groq: {str(e)}")
         return None
 
 # Streamlit UI setup
@@ -196,7 +180,7 @@ if submit_button and user_input:
     # Process audio transcription if uploaded
     if audio_file:
         try:
-            transcription = transcribe_audio(audio_file)
+            transcription = transcribe_audio(audio_file)  # Use the Groq transcription function
             if transcription:
                 prompt_text += f"\n\nTranscribed audio content:\n{transcription}"
         except Exception as e:
