@@ -72,6 +72,10 @@ if "chat_history" not in st.session_state:
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
     st.session_state.selected_model = "Qwen2.5-72B-Instruct"
 
+# Ensure 'user_input' is initialized
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
+
 # Button to start a new chat
 if st.button("Start New Chat"):
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! Starting a new conversation. How can I assist you today?"}]
@@ -101,10 +105,8 @@ for msg in st.session_state.current_chat:
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 
-# Wait for user input (process when the Enter key is pressed)
+# User input (press Enter to submit)
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here and press Enter")
-
-# Process the user's input when the Enter key is pressed
 if user_input:
     # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
@@ -157,7 +159,7 @@ if user_input:
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
-    # Clear the input field after processing
+    # Clear user input after processing
     st.session_state.user_input = ""
 
 # Display chat history with deletion option
