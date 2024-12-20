@@ -4,7 +4,7 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
-from groq import Groq
+from io import BytesIO
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -66,12 +66,17 @@ def transcribe_audio(file):
     url = "https://api.groq.com/openai/v1/audio/transcriptions"  # Groq transcription endpoint
 
     # Specify the transcription model (Groq's API model)
-    model = "whisper-1"  # Replace this with the actual model Groq uses for transcription
+    model = "whisper-large-v3-turbo"  # Use the correct model name
 
     # Prepare the headers for the API request
     headers = {
         "Authorization": f"Bearer {whisper_api_key}",  # Authorization with your API key
     }
+
+    # Check if the file is in the correct format (MP3, WAV, etc.)
+    if file.type not in ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/opus', 'audio/flac']:
+        st.error(f"Unsupported file type: {file.type}. Please upload an MP3 or WAV file.")
+        return None
 
     # Prepare the data payload for the request
     data = {
@@ -82,7 +87,8 @@ def transcribe_audio(file):
     try:
         # Open the audio file and send it as binary content
         with file:
-            files = {"file": file.getvalue()}  # Get the file content as binary
+            audio_file = BytesIO(file.getvalue())  # Convert the file to a BytesIO object
+            files = {"file": audio_file}  # Prepare the file for sending as part of the request
             response = requests.post(
                 url,
                 headers=headers,
@@ -111,7 +117,7 @@ st.title("Botify")
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 # Upload an audio file
-audio_file = st.file_uploader("Upload your audio file", type=["mp3", "wav", "m4a", "ogg", "opus"])
+audio_file = st.file_uploader("Upload your audio file", type=["mp3", "wav", "m4a", "ogg", "opus", "flac"])
 
 # Initialize session state for chat
 if "chat_history" not in st.session_state:
@@ -133,7 +139,7 @@ if pdf_file:
 elif audio_file:
     model_choice = "Whisper"
     st.session_state.selected_model = model_choice
-    model = "whisper-1"  # Use Whisper model for audio
+    model = "whisper-large-v3-turbo"  # Use your correct Whisper model
 
 # Display which model is being used
 st.write(f"**Model Selected:** {st.session_state.selected_model}")
@@ -170,7 +176,8 @@ if submit_button and user_input:
     if audio_file:
         try:
             transcription = transcribe_audio(audio_file)
-            prompt_text += f"\n\nTranscribed audio content:\n{transcription}"
+            if transcription:
+                prompt_text += f"\n\nTranscribed audio content:\n{transcription}"
         except Exception as e:
             st.error(f"Error while transcribing audio: {e}")
 
