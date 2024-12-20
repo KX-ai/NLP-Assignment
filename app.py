@@ -73,6 +73,9 @@ def transcribe_audio(file):
         "Authorization": f"Bearer {whisper_api_key}",  # Authorization with your API key
     }
 
+    # Debug: Display MIME type for the uploaded audio file
+    st.write(f"File MIME type: {file.type}")
+
     # Check if the file is in the correct format (MP3, WAV, etc.)
     if file.type not in ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/opus', 'audio/flac']:
         st.error(f"Unsupported file type: {file.type}. Please upload an MP3 or WAV file.")
