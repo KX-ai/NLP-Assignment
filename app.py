@@ -77,10 +77,10 @@ def transcribe_audio(file):
         st.error(f"File is too large! Max size is 25 MB. Your file is {file_size:.2f} MB.")
         return None
 
-    # Preprocess the audio
+    # Preprocess the audio (downsample to 16000 Hz mono using pydub)
     try:
         audio = AudioSegment.from_file(file)
-        audio = audio.set_frame_rate(16000).set_channels(1)
+        audio = audio.set_frame_rate(16000).set_channels(1)  # Set to 16kHz mono (downsampling)
         processed_audio_path = "processed_audio.wav"
         audio.export(processed_audio_path, format="wav")
     except Exception as e:
