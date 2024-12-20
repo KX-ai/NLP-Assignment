@@ -65,7 +65,6 @@ def estimate_token_count(messages):
 # Transcribe audio using Groq API (without ffprobe dependency)
 def transcribe_audio(file):
     groq_api_key = st.secrets["groq"]["GROQ_API_KEY"]  # Use Groq API key from secrets
-    client = Groq(api_key=groq_api_key)
 
     # Validate file type and size
     if file.type not in ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/flac']:
@@ -77,13 +76,23 @@ def transcribe_audio(file):
         st.error(f"File is too large! Max size is 25 MB. Your file is {file_size:.2f} MB.")
         return None
 
-    # Use the raw file directly for transcription
+    # Load audio file using pydub
+    audio = AudioSegment.from_file(file)
+    
+    # Optionally trim the audio if necessary (e.g., only first 5 seconds)
+    # audio = audio[:5000]  # Trim to first 5 seconds
+
+    # Create a BytesIO buffer and export audio into it
+    buffer = BytesIO()
+    buffer.name = file.name  # Set the file name with the correct extension
+    audio.export(buffer, format=file.type.split('/')[1])  # Use the correct format based on the file type
+    buffer.seek(0)  # Move to the start of the buffer
+
+    # Transcribe audio using Whisper
     try:
-        transcription = client.audio.transcriptions.create(
-            file=("audio_file", file),
-            model="whisper-large",  # Updated model name
-            language="en",
-            response_format="json"
+        transcription = openai.Audio.transcribe(
+            model="whisper-1",  # Use the Whisper model
+            file=("audio_file", buffer)
         )
         return transcription.get('text', "No transcription text returned.")
     except Exception as e:
@@ -118,7 +127,7 @@ if pdf_file:
     pdf_text = extract_text_from_pdf(pdf_file)
     st.write(f"**PDF Content Extracted:** {pdf_text[:500]}...")
 if audio_file:
-    st.session_state.selected_model = "whisper-large"  # Updated model for Groq API
+    st.session_state.selected_model = "whisper-1"  # Updated model for Groq API
     transcription = transcribe_audio(audio_file)
     if transcription:
         st.write(f"**Audio Transcription:** {transcription}")
