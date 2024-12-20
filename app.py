@@ -111,7 +111,7 @@ st.title("Botify")
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 # Upload an audio file
-audio_file = st.file_uploader("Upload your audio file", type=["mp3", "wav", "m4a"])
+audio_file = st.file_uploader("Upload your audio file", type=["mp3", "wav", "m4a", "ogg", "opus"])
 
 # Initialize session state for chat
 if "chat_history" not in st.session_state:
@@ -134,6 +134,9 @@ elif audio_file:
     model_choice = "Whisper"
     st.session_state.selected_model = model_choice
     model = "whisper-1"  # Use Whisper model for audio
+
+# Display which model is being used
+st.write(f"**Model Selected:** {st.session_state.selected_model}")
 
 # Display chat dynamically
 st.write("### Chat Conversation")
