@@ -4,5 +4,5 @@ PyPDF2==2.11.0
 streamlit==1.22.0
 groq
 pydub
-ffmpeg-python
+ffmpeg-python==4.4.0
 
