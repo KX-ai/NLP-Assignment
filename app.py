@@ -60,20 +60,22 @@ def estimate_token_count(messages):
             token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
     return token_count
 
-# Function to transcribe audio using Groq and Whisper model
+# Function to transcribe audio using Whisper model
 def transcribe_audio(file):
-    client = Groq()
+    whisper_api_key = st.secrets["whisper"]["WHISPER_API_KEY"]  # Access Whisper API key
+    openai.api_key = whisper_api_key  # Set the API key for OpenAI
+
     filename = file.name
     try:
+        # Open the audio file
         with open(filename, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
-                file=(filename, audio_file.read()),
-                model="whisper-large-v3-turbo",
-                response_format="json",
-                language="en",
-                temperature=0.0
+            # Call OpenAI's Whisper API for transcription
+            transcription = openai.Audio.transcribe(
+                model="whisper-1",
+                file=audio_file,
+                language="en"
             )
-            return transcription.text
+            return transcription['text']
     except Exception as e:
         raise Exception(f"Error while transcribing audio: {str(e)}")
 
