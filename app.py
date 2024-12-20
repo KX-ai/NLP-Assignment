@@ -74,7 +74,7 @@ def transcribe_audio(file):
     }
 
     # Check if the file is in the correct format (MP3, WAV, etc.)
-    if file.type not in ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/opus', 'audio/flac']:
+    if file.type not in ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/opus', 'audio/flac']:
         st.error(f"Unsupported file type: {file.type}. Please upload an MP3 or WAV file.")
         return None
 
