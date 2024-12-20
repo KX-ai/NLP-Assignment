@@ -91,41 +91,32 @@ if model_choice != st.session_state.selected_model:
     st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
     st.session_state.chat_history.append(st.session_state.current_chat)
 
-# Display chat dynamically
-st.write("### Chat Conversation")
-for msg in st.session_state.current_chat:
-    if isinstance(msg, dict) and "role" in msg and "content" in msg:
-        if msg["role"] == "user":
-            st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
-        elif msg["role"] == "assistant":
-            st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
-    else:
-        st.error("Error: A message is missing or malformed in the chat history.")
-
-# API keys
-sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
+# Define callback for clearing user input
+def clear_input():
+    st.session_state.user_input = ""
 
 # User input box with Enter key submission
-user_input = st.text_input(
+st.text_input(
     "Your message:",
     value=st.session_state.user_input,
     placeholder="Type your message here and press Enter",
     key="user_input",
-    on_change=lambda: None,  # Dummy function to trigger state update
+    on_change=clear_input
 )
 
-if user_input:
+# Process user input
+if st.session_state.user_input:
     # Add user input to current chat
-    st.session_state.current_chat.append({"role": "user", "content": user_input})
+    st.session_state.current_chat.append({"role": "user", "content": st.session_state.user_input})
 
     # If a PDF is uploaded, extract its content
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
         # Use the extracted PDF content as part of the prompt
-        prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
+        prompt_text = f"Document content:\n{text_content}\n\nUser question: {st.session_state.user_input}\nAnswer:"
     else:
         # Only use user input for the prompt if no PDF is uploaded
-        prompt_text = f"User question: {user_input}\nAnswer:"
+        prompt_text = f"User question: {st.session_state.user_input}\nAnswer:"
 
     # Add system message with the prompt (for LLM)
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
@@ -146,7 +137,7 @@ if user_input:
     try:
         # Call the API to get a response from the selected model
         response = SambanovaClient(
-            api_key=sambanova_api_key,
+            api_key=st.secrets["general"]["SAMBANOVA_API_KEY"],
             base_url="https://api.sambanova.ai/v1"
         ).chat(
             model=model,
@@ -166,21 +157,13 @@ if user_input:
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
-    # Clear user input after processing
-    st.session_state.user_input = ""
-
-# Display chat history with deletion option
-with st.expander("Chat History"):
-    for i, conversation in enumerate(st.session_state.chat_history):
-        with st.container():
-            st.write(f"**Conversation {i + 1}:**")
-            for msg in conversation:
-                if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                    role = "User" if msg["role"] == "user" else "Botify"
-                    st.write(f"**{role}:** {msg['content']}")
-                else:
-                    st.error(f"Error: Malformed message in conversation {i + 1}.")
-            if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
-                del st.session_state.chat_history[i]
-                save_chat_history(st.session_state.chat_history)
-                st.experimental_rerun()
+# Display chat dynamically
+st.write("### Chat Conversation")
+for msg in st.session_state.current_chat:
+    if isinstance(msg, dict) and "role" in msg and "content" in msg:
+        if msg["role"] == "user":
+            st.markdown(f"**\U0001F9D1 User:** {msg['content']}")
+        elif msg["role"] == "assistant":
+            st.markdown(f"**\U0001F916 Botify:** {msg['content']}")
+    else:
+        st.error("Error: A message is missing or malformed in the chat history.")
