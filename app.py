@@ -77,14 +77,13 @@ def transcribe_audio(file):
 
     # Create a BytesIO buffer from the uploaded audio file
     buffer = BytesIO(file.getvalue())
-    buffer.name = file.name  # Set the file name to help with format detection
-    buffer.seek(0)  # Reset buffer position
+    buffer.seek(0)  # Reset buffer position to start
 
     # Transcribe audio using Whisper
     try:
         transcription = openai.Audio.transcribe(
             model="whisper-1",  # Use Whisper model for transcription
-            file=("audio_file", buffer)
+            file=("audio_file", buffer)  # Correct format: ("filename", buffer)
         )
         return transcription.get('text', "No transcription text returned.")
     except Exception as e:
@@ -162,3 +161,4 @@ if st.button("Submit"):
         st.session_state.current_chat.append({"role": "assistant", "content": answer})
     except Exception as e:
         st.error(f"Error: {str(e)}")
+
