@@ -101,14 +101,15 @@ if st.button("Start New Chat"):
     st.session_state.chat_history.append(st.session_state.current_chat)
     st.success("New chat started!")
 
-# Model selection
-model_choice = st.selectbox("Select the LLM model:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
-
-# Change model logic
-if model_choice != st.session_state.selected_model:
+# Handle file type and model selection
+if pdf_file:
+    model_choice = st.selectbox("Select the LLM model for PDF:", ["Sambanova (Qwen 2.5-72B-Instruct)", "Sambanova (Meta-Llama-3.2-1B-Instruct)"])
     st.session_state.selected_model = model_choice
-    st.session_state.current_chat = [{"role": "assistant", "content": "Hello! I am Botify, your assistant. How can I assist you today?"}]
-    st.session_state.chat_history.append(st.session_state.current_chat)
+    model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
+elif audio_file:
+    model_choice = "Whisper"
+    st.session_state.selected_model = model_choice
+    model = "whisper-1"  # Use Whisper model for audio
 
 # Display chat dynamically
 st.write("### Chat Conversation")
@@ -148,8 +149,7 @@ if submit_button and user_input:
 
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
-    model = "Qwen2.5-72B-Instruct" if st.session_state.selected_model == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
-    context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
+    context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384 if model == "Meta-Llama-3.2-1B-Instruct" else 4096
 
     total_tokens = estimate_token_count(st.session_state.current_chat)
     if total_tokens > context_length:
@@ -159,22 +159,27 @@ if submit_button and user_input:
     max_tokens = min(max(remaining_tokens, 1), 1024)
 
     try:
-        response = SambanovaClient(
-            api_key=sambanova_api_key,
-            base_url="https://api.sambanova.ai/v1"
-        ).chat(
-            model=model,
-            messages=st.session_state.current_chat,
-            temperature=0.1,
-            top_p=0.1,
-            max_tokens=max_tokens
-        )
-        if 'choices' in response and response['choices']:
-            answer = response['choices'][0]['message']['content'].strip()
-            st.session_state.current_chat.append({"role": "assistant", "content": answer})
+        if model_choice != "Whisper":  # If not Whisper, use Sambanova API for PDF-based models
+            response = SambanovaClient(
+                api_key=sambanova_api_key,
+                base_url="https://api.sambanova.ai/v1"
+            ).chat(
+                model=model,
+                messages=st.session_state.current_chat,
+                temperature=0.1,
+                top_p=0.1,
+                max_tokens=max_tokens
+            )
+            if 'choices' in response and response['choices']:
+                answer = response['choices'][0]['message']['content'].strip()
+                st.session_state.current_chat.append({"role": "assistant", "content": answer})
+                save_chat_history(st.session_state.chat_history)
+            else:
+                st.error("Error: Empty response from the model.")
+        else:  # If Whisper model, return transcription text
+            st.session_state.current_chat.append({"role": "assistant", "content": "Transcribed audio content: " + prompt_text})
             save_chat_history(st.session_state.chat_history)
-        else:
-            st.error("Error: Empty response from the model.")
+
     except Exception as e:
         st.error(f"Error while fetching response: {e}")
 
