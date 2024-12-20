@@ -63,7 +63,7 @@ def estimate_token_count(messages):
             token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
     return token_count
 
-# Updated function to transcribe audio using the Groq API
+# Updated function to preprocess and transcribe audio using the Groq API
 def transcribe_audio(file):
     groq_api_key = st.secrets["groq"]["GROQ_API_KEY"]  # Access Groq API key
     client = Groq(api_key=groq_api_key)
@@ -92,11 +92,19 @@ def transcribe_audio(file):
         st.error(f"Audio file is too short. The minimum length is 10 seconds. Your file is {duration_seconds:.2f} seconds.")
         return None
 
+    # Preprocess the audio to 16 kHz mono
+    try:
+        # Downsample the audio file to 16kHz mono
+        audio = audio.set_frame_rate(16000).set_channels(1)
+        processed_audio_path = "processed_audio.wav"
+        audio.export(processed_audio_path, format="wav")
+    except Exception as e:
+        st.error(f"Error during audio preprocessing: {str(e)}")
+        return None
+
     # Open the audio file and send it to the Groq API
     try:
-        with file:
-            audio_file = file.getvalue()  # Get the binary content of the audio file
-
+        with open(processed_audio_path, 'rb') as audio_file:
             transcription = client.audio.transcriptions.create(
                 file=("audio_file", audio_file),  # Send audio file
                 model="whisper-large-v3-turbo",  # Use the Whisper model
@@ -216,24 +224,9 @@ if submit_button and user_input:
             else:
                 st.error("Error: Empty response from the model.")
         else:  # If Whisper model, return transcription text
-            st.session_state.current_chat.append({"role": "assistant", "content": "Transcribed audio content: " + prompt_text})
+            st.session_state.current_chat.append({"role": "assistant", "content": transcription})
             save_chat_history(st.session_state.chat_history)
 
     except Exception as e:
-        st.error(f"Error while fetching response: {e}")
+        st.error(f"Error: {str(e)}")
 
-# Display chat history with deletion option
-with st.expander("Chat History"):
-    for i, conversation in enumerate(st.session_state.chat_history):
-        with st.container():
-            st.write(f"**Conversation {i + 1}:**")
-            for msg in conversation:
-                if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                    role = "User" if msg["role"] == "user" else "Botify"
-                    st.write(f"**{role}:** {msg['content']}")
-                else:
-                    st.error(f"Error: Malformed message in conversation {i + 1}.")
-            if st.button(f"Delete Conversation {i + 1}", key=f"delete_{i}"):
-                del st.session_state.chat_history[i]
-                save_chat_history(st.session_state.chat_history)
-                st.experimental_rerun()
