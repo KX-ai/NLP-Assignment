@@ -5,7 +5,6 @@ import PyPDF2
 import streamlit as st
 import json
 from io import BytesIO
-from pydub import AudioSegment
 from groq import Groq  # Groq library for audio transcription
 
 # File path for saving chat history
@@ -76,22 +75,15 @@ def transcribe_audio(file):
         st.error(f"File is too large! Max size is 25 MB. Your file is {file_size:.2f} MB.")
         return None
 
-    # Load audio file using pydub
-    audio = AudioSegment.from_file(file)
-    
-    # Optionally trim the audio if necessary (e.g., only first 5 seconds)
-    # audio = audio[:5000]  # Trim to first 5 seconds
-
-    # Create a BytesIO buffer and export audio into it
-    buffer = BytesIO()
-    buffer.name = file.name  # Set the file name with the correct extension
-    audio.export(buffer, format=file.type.split('/')[1])  # Use the correct format based on the file type
-    buffer.seek(0)  # Move to the start of the buffer
+    # Create a BytesIO buffer from the uploaded audio file
+    buffer = BytesIO(file.getvalue())
+    buffer.name = file.name  # Set the file name to help with format detection
+    buffer.seek(0)  # Reset buffer position
 
     # Transcribe audio using Whisper
     try:
         transcription = openai.Audio.transcribe(
-            model="whisper-1",  # Use the Whisper model
+            model="whisper-1",  # Use Whisper model for transcription
             file=("audio_file", buffer)
         )
         return transcription.get('text', "No transcription text returned.")
@@ -126,6 +118,7 @@ if pdf_file:
     st.session_state.selected_model = "Qwen2.5-72B-Instruct"
     pdf_text = extract_text_from_pdf(pdf_file)
     st.write(f"**PDF Content Extracted:** {pdf_text[:500]}...")
+
 if audio_file:
     st.session_state.selected_model = "whisper-1"  # Updated model for Groq API
     transcription = transcribe_audio(audio_file)
