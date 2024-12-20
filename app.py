@@ -65,14 +65,12 @@ def transcribe_audio(file):
     whisper_api_key = st.secrets["whisper"]["WHISPER_API_KEY"]  # Access Whisper API key
     openai.api_key = whisper_api_key  # Set the API key for OpenAI
 
-    filename = file.name
     try:
-        # Open the audio file
-        with open(filename, "rb") as audio_file:
-            # Call OpenAI's Whisper API for transcription
+        # Open the audio file directly from the file object
+        with file:
             transcription = openai.Audio.transcribe(
                 model="whisper-1",
-                file=audio_file,
+                file=file,
                 language="en"
             )
             return transcription['text']
