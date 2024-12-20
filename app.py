@@ -137,9 +137,9 @@ if pdf_file:
     st.session_state.selected_model = model_choice
     model = "Qwen2.5-72B-Instruct" if model_choice == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
 elif audio_file:
-    model_choice = "Whisper"
+    model_choice = "whisper-large-v3-turbo"  # Set the Whisper model name explicitly
     st.session_state.selected_model = model_choice
-    model = "whisper-large-v3-turbo"  # Use your correct Whisper model
+    model = "whisper-large-v3-turbo"  # Ensure model is set correctly for Whisper
 
 # Display which model is being used
 st.write(f"**Model Selected:** {st.session_state.selected_model}")
@@ -193,7 +193,7 @@ if submit_button and user_input:
     max_tokens = min(max(remaining_tokens, 1), 1024)
 
     try:
-        if model_choice != "Whisper":  # If not Whisper, use Sambanova API for PDF-based models
+        if model_choice != "whisper-large-v3-turbo":  # If not Whisper, use Sambanova API for PDF-based models
             response = SambanovaClient(
                 api_key=sambanova_api_key,
                 base_url="https://api.sambanova.ai/v1"
