@@ -80,7 +80,7 @@ def transcribe_audio(file):
 
     # Prepare the request payload
     headers = {"Authorization": f"Bearer {whisper_api_key}"}
-    data = {"model": "whisper-1", "language": "en"}
+    data = {"model": "whisper-large-v3-turbo", "language": "en"}
 
     try:
         # Send the audio file for transcription
