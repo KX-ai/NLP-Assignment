@@ -5,6 +5,8 @@ import PyPDF2
 import streamlit as st
 import json
 from io import BytesIO
+from pydub import AudioSegment
+from pydub.utils import mediainfo
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -73,12 +75,28 @@ def transcribe_audio(file):
         "Authorization": f"Bearer {whisper_api_key}",  # Authorization with your API key
     }
 
-    # Debug: Display MIME type for the uploaded audio file
-    st.write(f"File MIME type: {file.type}")
-
     # Check if the file is in the correct format (MP3, WAV, etc.)
     if file.type not in ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/opus', 'audio/flac']:
-        st.error(f"Unsupported file type: {file.type}. Please upload an MP3 or WAV file.")
+        st.error(f"Unsupported file type: {file.type}. Please upload an MP3, WAV, or another supported file.")
+        return None
+
+    # Check the file size (must be <= 25 MB)
+    file_size = len(file.getvalue()) / (1024 * 1024)  # Convert to MB
+    if file_size > 25:
+        st.error(f"File is too large! The maximum allowed size is 25 MB. Your file is {file_size:.2f} MB.")
+        return None
+
+    # Use pydub to analyze the file length
+    try:
+        audio = AudioSegment.from_file(file)
+        duration_seconds = len(audio) / 1000  # Duration in seconds
+    except Exception as e:
+        st.error(f"Error while reading audio file: {str(e)}")
+        return None
+
+    # Check the audio length (must be >= 10 seconds)
+    if duration_seconds < 10:
+        st.error(f"Audio file is too short. The minimum length is 10 seconds. Your file is {duration_seconds:.2f} seconds.")
         return None
 
     # Prepare the data payload for the request
