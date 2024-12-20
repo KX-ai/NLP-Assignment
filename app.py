@@ -4,6 +4,7 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
+from groq import Groq
 
 # File path for saving chat history
 CHAT_HISTORY_FILE = "chat_history.json"
@@ -59,12 +60,32 @@ def estimate_token_count(messages):
             token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
     return token_count
 
+# Function to transcribe audio using Groq and Whisper model
+def transcribe_audio(file):
+    client = Groq()
+    filename = file.name
+    try:
+        with open(filename, "rb") as audio_file:
+            transcription = client.audio.transcriptions.create(
+                file=(filename, audio_file.read()),
+                model="whisper-large-v3-turbo",
+                response_format="json",
+                language="en",
+                temperature=0.0
+            )
+            return transcription.text
+    except Exception as e:
+        raise Exception(f"Error while transcribing audio: {str(e)}")
+
 # Streamlit UI setup
-st.set_page_config(page_title="Chatbot with PDF (Botify)", layout="centered")
+st.set_page_config(page_title="Chatbot with PDF and Audio (Botify)", layout="centered")
 st.title("Botify")
 
 # Upload a PDF file
 pdf_file = st.file_uploader("Upload your PDF file", type="pdf")
+
+# Upload an audio file
+audio_file = st.file_uploader("Upload your audio file", type=["mp3", "wav", "m4a"])
 
 # Initialize session state for chat
 if "chat_history" not in st.session_state:
@@ -101,42 +122,41 @@ for msg in st.session_state.current_chat:
 # API keys
 sambanova_api_key = st.secrets["general"]["SAMBANOVA_API_KEY"]
 
-# Wait for user input (only process when the user clicks the "Submit" button)
+# Handle user input and process chat
 user_input = st.text_input("Your message:", key="user_input", placeholder="Type your message here")
 submit_button = st.button("Submit", key="submit_button")
 
-# Ensure the submit button is handled properly and the conversation updates when clicked
 if submit_button and user_input:
-    # Add user input to current chat
     st.session_state.current_chat.append({"role": "user", "content": user_input})
 
-    # If a PDF is uploaded, extract its content
+    # Process PDF content if uploaded
     if pdf_file:
         text_content = extract_text_from_pdf(pdf_file)
-        # Use the extracted PDF content as part of the prompt
         prompt_text = f"Document content:\n{text_content}\n\nUser question: {user_input}\nAnswer:"
     else:
-        # Only use user input for the prompt if no PDF is uploaded
         prompt_text = f"User question: {user_input}\nAnswer:"
 
-    # Add system message with the prompt (for LLM)
+    # Process audio transcription if uploaded
+    if audio_file:
+        try:
+            transcription = transcribe_audio(audio_file)
+            prompt_text += f"\n\nTranscribed audio content:\n{transcription}"
+        except Exception as e:
+            st.error(f"Error while transcribing audio: {e}")
+
     st.session_state.current_chat.append({"role": "system", "content": prompt_text})
 
-    # Adjust the context length for each model
     model = "Qwen2.5-72B-Instruct" if st.session_state.selected_model == "Sambanova (Qwen 2.5-72B-Instruct)" else "Meta-Llama-3.2-1B-Instruct"
     context_length = 8192 if model == "Qwen2.5-72B-Instruct" else 16384
 
-    # Estimate token count and trim history to stay within the token limit
     total_tokens = estimate_token_count(st.session_state.current_chat)
     if total_tokens > context_length:
-        # Trim the chat history to fit within the token limit, keeping only the last 3 messages
         st.session_state.current_chat = st.session_state.current_chat[-3:]
 
     remaining_tokens = context_length - estimate_token_count(st.session_state.current_chat)
-    max_tokens = min(max(remaining_tokens, 1), 1024)  # Cap max tokens to prevent overly long responses
+    max_tokens = min(max(remaining_tokens, 1), 1024)
 
     try:
-        # Call the API to get a response from the selected model
         response = SambanovaClient(
             api_key=sambanova_api_key,
             base_url="https://api.sambanova.ai/v1"
@@ -149,9 +169,7 @@ if submit_button and user_input:
         )
         if 'choices' in response and response['choices']:
             answer = response['choices'][0]['message']['content'].strip()
-            # Append the model's response to the conversation history
             st.session_state.current_chat.append({"role": "assistant", "content": answer})
-            # Save chat history
             save_chat_history(st.session_state.chat_history)
         else:
             st.error("Error: Empty response from the model.")
