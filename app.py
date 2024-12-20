@@ -60,22 +60,48 @@ def estimate_token_count(messages):
             token_count += len(msg["content"].split()) * 4  # Approximate token count: 4 tokens per word
     return token_count
 
-# Function to transcribe audio using Whisper model
+# Updated function to transcribe audio using the Groq API
 def transcribe_audio(file):
-    whisper_api_key = st.secrets["whisper"]["WHISPER_API_KEY"]  # Access Whisper API key
-    openai.api_key = whisper_api_key  # Set the API key for OpenAI
+    whisper_api_key = st.secrets["whisper"]["WHISPER_API_KEY"]  # Access Whisper API key (Groq API key)
+    url = "https://api.groq.com/openai/v1/audio/transcriptions"  # Groq transcription endpoint
+
+    # Specify the transcription model (Groq's API model)
+    model = "whisper-1"  # Replace this with the actual model Groq uses for transcription
+
+    # Prepare the headers for the API request
+    headers = {
+        "Authorization": f"Bearer {whisper_api_key}",  # Authorization with your API key
+    }
+
+    # Prepare the data payload for the request
+    data = {
+        "model": model,  # Add the model field to the request
+        "language": "en",  # Specify the language
+    }
 
     try:
-        # Open the audio file directly from the file object
+        # Open the audio file and send it as binary content
         with file:
-            transcription = openai.Audio.transcribe(
-                model="whisper-1",
-                file=file,
-                language="en"
+            files = {"file": file.getvalue()}  # Get the file content as binary
+            response = requests.post(
+                url,
+                headers=headers,
+                files=files,
+                data=data  # Send additional data (model and language)
             )
-            return transcription['text']
-    except Exception as e:
-        raise Exception(f"Error while transcribing audio: {str(e)}")
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            transcription = response.json()  # Parse the response JSON
+            return transcription["text"]  # Return the transcribed text
+        else:
+            st.error(f"Error: {response.status_code} - {response.text}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        # Handle any errors during the API request
+        st.error(f"Error while transcribing audio: {str(e)}")
+        return None
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chatbot with PDF and Audio (Botify)", layout="centered")
