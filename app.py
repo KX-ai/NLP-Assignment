@@ -4,6 +4,7 @@ import requests
 import PyPDF2
 import streamlit as st
 import json
+from io import BytesIO
 from groq import Groq
 
 # File path for saving chat history
@@ -65,42 +66,40 @@ def transcribe_audio(file):
     whisper_api_key = st.secrets["whisper"]["WHISPER_API_KEY"]  # Access Whisper API key (Groq API key)
     url = "https://api.groq.com/openai/v1/audio/transcriptions"  # Groq transcription endpoint
 
-    # Specify the transcription model (Groq's API model)
-    model = "whisper-1"  # Replace this with the actual model Groq uses for transcription
+    # Check file type
+    valid_types = ['flac', 'mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'ogg', 'opus', 'wav', 'webm']
+    extension = file.name.split('.')[-1].lower()
+    if extension not in valid_types:
+        st.error(f"Invalid file type: {extension}. Supported types: {', '.join(valid_types)}")
+        return None
 
-    # Prepare the headers for the API request
-    headers = {
-        "Authorization": f"Bearer {whisper_api_key}",  # Authorization with your API key
-    }
+    # Prepare file buffer with proper extension in the .name attribute
+    audio_data = file.getvalue()
+    buffer = BytesIO(audio_data)
+    buffer.name = f"file.{extension}"  # Assigning a valid extension based on the uploaded file
 
-    # Prepare the data payload for the request
-    data = {
-        "model": model,  # Add the model field to the request
-        "language": "en",  # Specify the language
-    }
+    # Prepare the request payload
+    headers = {"Authorization": f"Bearer {whisper_api_key}"}
+    data = {"model": "whisper-1", "language": "en"}
 
     try:
-        # Open the audio file and send it as binary content
-        with file:
-            files = {"file": file.getvalue()}  # Get the file content as binary
-            response = requests.post(
-                url,
-                headers=headers,
-                files=files,
-                data=data  # Send additional data (model and language)
-            )
+        # Send the audio file for transcription
+        response = requests.post(
+            url,
+            headers=headers,
+            files={"file": buffer},
+            data=data
+        )
 
-        # Check if the request was successful
+        # Handle response
         if response.status_code == 200:
-            transcription = response.json()  # Parse the response JSON
-            return transcription["text"]  # Return the transcribed text
+            transcription = response.json()
+            return transcription.get("text", "No transcription text found.")
         else:
             st.error(f"Error: {response.status_code} - {response.text}")
             return None
-
     except requests.exceptions.RequestException as e:
-        # Handle any errors during the API request
-        st.error(f"Error while transcribing audio: {str(e)}")
+        st.error(f"Error during transcription: {str(e)}")
         return None
 
 # Streamlit UI setup
